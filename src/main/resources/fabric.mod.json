@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "mcdiver",
+	"version": "${version}",
+	"name": "retucio's mc diver",
+	"description": "take a deep dive into real-time field values or method calls in-game",
+	"authors": [
+		"retucio"
+	],
+	"contact": {
+		"homepage": "https://retucio.me/",
+		"sources": "https://github.com/retuci0/retbrowser"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/mcdiver/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+          "me.retucio.diver.Diver"
+		]
+	},
+	"mixins": [
+		"mcdiver.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.2",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
