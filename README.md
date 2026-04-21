@@ -7,7 +7,7 @@
 <table>
     <tr>
         <td>open gui</td>
-        <td>double tap left shift</td>
+        <td>double tap right shift</td>
     </tr>
     <tr>
         <td>close gui</td>
