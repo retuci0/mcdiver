@@ -19,6 +19,14 @@
     </tr>
 </table>
 
+## how?
+
+via reflection
+
+## why?
+
+because debugging can be fun
+
 ## license
 
 whatever.

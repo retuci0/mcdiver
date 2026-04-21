@@ -1,5 +1,6 @@
-set field values
-autocomplete scroll down with scroll bar
-autocomplete scroll down visually
+set field values & instantiation (mc.player = new Player())
+
+fix negative indexoutofboundsE
+
 macros
 commands

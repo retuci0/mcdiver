@@ -21,6 +21,8 @@ public abstract class Widget {
     public abstract void render(GuiGraphicsExtractor gui, int mx, int my);
     public void onClick(int button, int action, int mx, int my) {}
     public void onKey(int key, int action) {}
+    public void onScroll(double delta) {}
+    public void onSelect() {}
 
 
     /* getters */
@@ -44,6 +46,10 @@ public abstract class Widget {
     public boolean isHovered(int mx, int my) {
         return mx >= x && mx <= x + w
             && my >= y && my <= y + h;
+    }
+
+    public boolean isSelected() {
+        return DiverScreen.getInstance().isSelected(this);
     }
 
 }

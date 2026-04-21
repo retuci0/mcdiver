@@ -16,6 +16,7 @@ public class AutocompleteWidget extends Widget {
 
     private List<String> suggestions = new ArrayList<>();
     private int selectedIndex = -1;
+    private int scrollOffset = 0;
     private boolean visible = false;
 
     private final Color BG_COLOR = new Color(20,  20,  20,  220);
@@ -29,18 +30,28 @@ public class AutocompleteWidget extends Widget {
 
     @Override
     public void render(GuiGraphicsExtractor gui, int mx, int my) {
-        if (!visible || suggestions.isEmpty()) return;
+        if (!visible || suggestions.isEmpty()) {
+            scrollOffset = 0;
+            return;
+        }
 
         int count = Math.min(suggestions.size(), MAX_VISIBLE);
-        int totalH = count * ITEM_H + 2 * PADDING;
+        h = count * ITEM_H + 2 * PADDING;
 
-        DrawUtil.drawRectOutline(x - PADDING, y - PADDING, w + 2 * PADDING, totalH + 2 * PADDING, PADDING, OUTLINE_COLOR.getRGB());
+        DrawUtil.drawRectOutline(x - PADDING, y - PADDING, w + 2 * PADDING, h, PADDING, OUTLINE_COLOR.getRGB());
 
-        for (int i = 0; i < count; i++) {
-            int itemY = y + i * ITEM_H;
-            int bg = (i == selectedIndex) ? SELECTED_COLOR.getRGB() : BG_COLOR.getRGB();
+        if (selectedIndex >= 0 && selectedIndex < scrollOffset) {
+            scrollOffset = selectedIndex;
+        }
+        if (selectedIndex >= 0 && selectedIndex >= scrollOffset + count) {
+            scrollOffset = selectedIndex - count + 1;
+        }
+
+        for (int j = scrollOffset; j < scrollOffset + count; j++) {
+            int itemY = y + (j - scrollOffset) * ITEM_H;
+            int bg = (j == selectedIndex) ? SELECTED_COLOR.getRGB() : BG_COLOR.getRGB();
             gui.fill(x, itemY, x + w, itemY + ITEM_H, bg);
-            gui.text(mc.font, suggestions.get(i), x + PADDING, itemY + PADDING, -1);
+            gui.text(mc.font, suggestions.get(j), x + PADDING, itemY + PADDING, -1);
         }
     }
 
@@ -61,6 +72,7 @@ public class AutocompleteWidget extends Widget {
     public void setSuggestions(List<String> next) {
         suggestions = new ArrayList<>(next);
         selectedIndex = -1;
+        scrollOffset = 0;
         visible = !next.isEmpty();
     }
 

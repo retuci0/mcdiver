@@ -13,11 +13,18 @@ import java.lang.reflect.Method;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Stack;
 
 
 public class DiverFieldWidget extends TextFieldWidget {
 
-    private final AutocompleteWidget autocomplete;
+    public final AutocompleteWidget autocomplete;
+
+    private final Stack<String> history = new Stack<>();
+    private int historyCursor = -1;
+
+    private int mx, my;
 
     public DiverFieldWidget(int x, int y, int w, int maxChars) {
         super(x, y, w, "take a dive into the Minecraft instance...", maxChars);
@@ -27,10 +34,17 @@ public class DiverFieldWidget extends TextFieldWidget {
     @Override
     public void render(GuiGraphicsExtractor gui, int mx, int my) {
         super.render(gui, mx, my);
+
+        // adjust y position
+        this.y = DiverScreen.getInstance().text.getY() + DiverScreen.getInstance().text.getH() + PADDING;
+
         autocomplete.setX(x);
         autocomplete.setY(y + h + 2 * PADDING);
         autocomplete.setW(w);
         autocomplete.render(gui, mx, my);
+
+        this.mx = mx;
+        this.my = my;
     }
 
     @Override
@@ -53,12 +67,49 @@ public class DiverFieldWidget extends TextFieldWidget {
 
         if (key == GLFW.GLFW_KEY_ENTER) {
             autocomplete.hide();
+            if (!text.isBlank()) {
+                history.push(text);
+                historyCursor = -1;
+            }
+
             DiverScreen.getInstance().text.setText(resolvePath(text.trim()));
+            return;
+        }
+
+        if (key == GLFW.GLFW_KEY_UP && !autocomplete.isVisible()) {
+            if (history.isEmpty()) return;
+            if (historyCursor == -1) historyCursor = history.size() - 1;
+            else historyCursor = Math.max(0, historyCursor - 1);
+            text = history.get(historyCursor);
+            return;
+        }
+
+        if (key == GLFW.GLFW_KEY_DOWN && !autocomplete.isVisible()) {
+            if (historyCursor == -1) return;
+            historyCursor++;
+            if (historyCursor >= history.size()) {
+                historyCursor = -1;
+                text = "";
+            } else {
+                text = history.get(historyCursor);
+            }
             return;
         }
 
         super.onKey(key, action);
         refreshSuggestions();
+    }
+
+    @Override
+    public void onScroll(double delta) {
+        if (delta == 0 || !autocomplete.isHovered(mx, my)) return;
+        autocomplete.keyPressed(
+                delta < 0
+                    ? GLFW.GLFW_KEY_DOWN
+                    : GLFW.GLFW_KEY_UP,
+                GLFW.GLFW_PRESS
+                );
+        super.onScroll(delta);
     }
 
     private void refreshSuggestions() {
@@ -100,6 +151,7 @@ public class DiverFieldWidget extends TextFieldWidget {
         text = text.substring(0, lastDot + 1) + insert;
         autocomplete.hide();
     }
+
 
     private void collectMembers(Class<?> clazz, String prefix, List<String> out) {
         List<String> fields  = new ArrayList<>();
@@ -154,8 +206,9 @@ public class DiverFieldWidget extends TextFieldWidget {
 
 
     private String resolvePath(String path) {
-        if (!path.startsWith("mc."))
+        if (!path.startsWith("mc.")) {
             return ChatFormatting.RED + "path must start with mc.";
+        }
 
         List<String> segments = splitPath(path.substring(3));
         Object current = Minecraft.getInstance();
@@ -163,8 +216,9 @@ public class DiverFieldWidget extends TextFieldWidget {
         try {
             for (int i = 0; i < segments.size() - 1; i++) {
                 current = resolveSegment(current, segments.get(i));
-                if (current == null)
+                if (current == null) {
                     return ChatFormatting.RED + "null at: " + ChatFormatting.WHITE + segments.get(i);
+                }
             }
 
             String last = segments.getLast();
@@ -186,10 +240,12 @@ public class DiverFieldWidget extends TextFieldWidget {
             return ChatFormatting.RED + "no such field: " + ChatFormatting.WHITE + e.getMessage();
         } catch (NoSuchMethodException e) {
             return ChatFormatting.RED + "no such method: " + ChatFormatting.WHITE + e.getMessage();
+        } catch (NoSuchElementException e) {
+            return ChatFormatting.RED + "no such element: " + ChatFormatting.WHITE + e.getMessage();
         } catch (IllegalAccessException e) {
             return ChatFormatting.RED + "access denied: " + ChatFormatting.WHITE + e.getMessage();
         } catch (Exception e) {
-            return ChatFormatting.RED + "error: " + ChatFormatting.WHITE + e.getMessage();
+            return ChatFormatting.RED + e.getClass().getName() + ": " + ChatFormatting.WHITE + e.getMessage();
         }
     }
 
@@ -216,10 +272,10 @@ public class DiverFieldWidget extends TextFieldWidget {
     }
 
     private Object invokeSegment(Object obj, String segment) throws Exception {
-        int parenOpen  = segment.indexOf('(');
-        String name    = segment.substring(0, parenOpen);
+        int parenOpen = segment.indexOf('(');
+        String name = segment.substring(0, parenOpen);
         String argsPart = segment.substring(parenOpen + 1, segment.length() - 1).trim();
-        Object[] args  = argsPart.isEmpty() ? new Object[0] : parseArgs(argsPart);
+        Object[] args = argsPart.isEmpty() ? new Object[0] : parseArgs(argsPart);
         Method m = findMethod(obj.getClass(), name, args);
         m.setAccessible(true);
         return m.invoke(obj, args);
@@ -228,7 +284,7 @@ public class DiverFieldWidget extends TextFieldWidget {
 
     private Field findField(Class<?> clazz, String name) throws NoSuchFieldException {
         for (Class<?> c = clazz; c != null; c = c.getSuperclass()) {
-            try { return c.getDeclaredField(name); } catch (NoSuchFieldException ignored) {}
+            try { return c.getDeclaredField(name); } catch (NoSuchFieldException _) {}
         }
         throw new NoSuchFieldException(name);
     }
@@ -249,12 +305,12 @@ public class DiverFieldWidget extends TextFieldWidget {
     }
 
     private boolean isCompatible(Class<?> param, Object arg) {
-        if (arg == null)  return !param.isPrimitive();
+        if (arg == null) return !param.isPrimitive();
         if (param.isInstance(arg)) return true;
-        if (param == int.class     && arg instanceof Integer) return true;
-        if (param == long.class    && (arg instanceof Long   || arg instanceof Integer)) return true;
-        if (param == float.class   && (arg instanceof Float  || arg instanceof Integer)) return true;
-        if (param == double.class  && (arg instanceof Double || arg instanceof Float
+        if (param == int.class && arg instanceof Integer) return true;
+        if (param == long.class && (arg instanceof Long || arg instanceof Integer)) return true;
+        if (param == float.class && (arg instanceof Float || arg instanceof Integer)) return true;
+        if (param == double.class && (arg instanceof Double || arg instanceof Float
                 || arg instanceof Integer || arg instanceof Long)) return true;
         return param == boolean.class && arg instanceof Boolean;
     }
@@ -272,27 +328,27 @@ public class DiverFieldWidget extends TextFieldWidget {
         if (s.equals("true"))  return true;
         if (s.equals("false")) return false;
         if (s.endsWith("L") || s.endsWith("l")) {
-            try { return Long.parseLong(s.substring(0, s.length() - 1)); } catch (NumberFormatException ignored) {}
+            try { return Long.parseLong(s.substring(0, s.length() - 1)); } catch (NumberFormatException _) {}
         }
         if (s.endsWith("f") || s.endsWith("F")) {
-            try { return Float.parseFloat(s.substring(0, s.length() - 1)); } catch (NumberFormatException ignored) {}
+            try { return Float.parseFloat(s.substring(0, s.length() - 1)); } catch (NumberFormatException _) {}
         }
         if (s.contains(".")) {
-            try { return Double.parseDouble(s); } catch (NumberFormatException ignored) {}
+            try { return Double.parseDouble(s); } catch (NumberFormatException _) {}
         }
-        try { return Integer.parseInt(s); } catch (NumberFormatException ignored) {}
+        try { return Integer.parseInt(s); } catch (NumberFormatException _) {}
         return s;
     }
 
     private List<String> splitPath(String path) {
         List<String> parts = new ArrayList<>();
         StringBuilder cur  = new StringBuilder();
-        int depth   = 0;
+        int depth = 0;
         boolean inStr = false;
         for (char c : path.toCharArray()) {
             if (c == '"') inStr = !inStr;
             if (!inStr) {
-                if      (c == '(') depth++;
+                if (c == '(') depth++;
                 else if (c == ')') depth--;
                 else if (c == '.' && depth == 0) { parts.add(cur.toString()); cur.setLength(0); continue; }
             }
@@ -308,10 +364,15 @@ public class DiverFieldWidget extends TextFieldWidget {
         boolean inStr = false;
         for (char c : raw.toCharArray()) {
             if (c == '"') inStr = !inStr;
-            if (c == ',' && !inStr) { args.add(cur.toString().trim()); cur.setLength(0); }
+            if (c == ',' && !inStr) {
+                args.add(cur.toString().trim());
+                cur.setLength(0);
+            }
             else cur.append(c);
         }
-        if (!cur.isEmpty()) args.add(cur.toString().trim());
+        if (!cur.isEmpty()) {
+            args.add(cur.toString().trim());
+        }
         return args;
     }
 
@@ -319,9 +380,9 @@ public class DiverFieldWidget extends TextFieldWidget {
         int depth = 0; boolean inStr = false; int last = -1;
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
-            if (c == '"')                  inStr = !inStr;
-            if (!inStr && c == '(')        depth++;
-            if (!inStr && c == ')')        depth--;
+            if (c == '"') inStr = !inStr;
+            if (!inStr && c == '(') depth++;
+            if (!inStr && c == ')') depth--;
             if (!inStr && c == '.' && depth == 0) last = i;
         }
         return last;

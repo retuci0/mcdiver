@@ -18,8 +18,11 @@ public class Diver implements ModInitializer {
 	private final static Minecraft mc = Minecraft.getInstance();
 
 	private final int SCREEN_KEY = GLFW.GLFW_KEY_RIGHT_SHIFT;
-	private int prevKey = -1;
+	private final int DOUBLE_TAP_THRESHOLD = 200;
+
+	private int lastKey = -1;
 	private long lastKeyTime = -1L;
+
 
 	@Override
 	public void onInitialize() {
@@ -29,21 +32,21 @@ public class Diver implements ModInitializer {
 	public void onTick() {
 		if (mc.isPaused()) return;
 
-		if (System.currentTimeMillis() - lastKeyTime >= 200) {
-			prevKey = -1;
+		if (System.currentTimeMillis() - lastKeyTime >= DOUBLE_TAP_THRESHOLD) {
+			lastKey = -1;
 		}
 	}
 
 	public void onKey(int key, int action) {
 		if (action != GLFW.GLFW_PRESS) return;
 
-		if (key == SCREEN_KEY && prevKey == SCREEN_KEY && mc.screen == null) {
+		if (key == SCREEN_KEY && lastKey == SCREEN_KEY && mc.screen == null) {
 			mc.setScreen(DiverScreen.getInstance());
-			prevKey = -1;
+			lastKey = -1;
 			return;
 		}
 
-		prevKey = key;
+		lastKey = key;
 		lastKeyTime = System.currentTimeMillis();
 	}
 

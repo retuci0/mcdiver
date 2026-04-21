@@ -1,5 +1,6 @@
 package me.retucio.diver.screen.widgets;
 
+import me.retucio.diver.screen.DiverScreen;
 import me.retucio.diver.screen.Widget;
 import me.retucio.diver.util.DrawUtil;
 import me.retucio.diver.util.KeyUtil;
@@ -38,11 +39,17 @@ public class TextFieldWidget extends Widget {
 
         DrawUtil.drawRectOutline(x - PADDING, y - PADDING, w + 2 * PADDING, h + 2 * PADDING, PADDING, -1);
         gui.fill(x, y, x + w, y + h, isHovered(mx, my) ? BG_COLOR.brighter().getRGB() : BG_COLOR.getRGB());
-        gui.text(mc.font, text, x + PADDING, y + PADDING, textColor);
+
+        String drawText = text;
+        if (DiverScreen.getInstance().isSelected(this)) {
+            if (System.currentTimeMillis() % 600 > 300) drawText += "_";
+            else drawText = text;
+        }
+        gui.text(mc.font, drawText, x + PADDING, y + PADDING, textColor);
     }
 
     @Override
-    public void onClick(int button, int action, int mx, int my) {
+    public void onSelect() {
         if (textColor == Color.LIGHT_GRAY.getRGB()) {
             text = "";
             textColor = -1;  // white

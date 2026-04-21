@@ -4,7 +4,9 @@ import me.retucio.diver.Diver;
 import me.retucio.diver.screen.widgets.impl.DiverFieldWidget;
 import me.retucio.diver.screen.widgets.TextFieldWidget;
 import me.retucio.diver.screen.widgets.TextWidget;
+import me.retucio.diver.util.ChatUtil;
 import me.retucio.diver.util.DrawUtil;
+import me.retucio.diver.util.KeyUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -35,9 +37,10 @@ public class DiverScreen extends Screen {
     private int x, y;
 
     private @Nullable Widget selected;
+    private int focusedIndex = -1;
     private final List<Widget> widgets = new ArrayList<>();
 
-    public TextFieldWidget textField;
+    public DiverFieldWidget textField;
     public TextWidget text;
 
     public DiverScreen() {
@@ -53,22 +56,18 @@ public class DiverScreen extends Screen {
         int contentW = WIDTH - 2 * PADDING;
 
         int textY = bgY + PADDING;
-        int textH = HEIGHT - 16 - 3 * PADDING;
-        int textLines = textH / 13;
-
         int fieldY = textY + 16 + PADDING;
 
         text = new TextWidget(
                 contentX,
-                fieldY,
+                textY,
                 contentW,
-                textLines,
                 "use the bar below to browse fields and methods"
         );
 
         textField = new DiverFieldWidget(
                 contentX,
-                textY,
+                fieldY,
                 contentW,
                 97
         );
@@ -132,7 +131,22 @@ public class DiverScreen extends Screen {
 
     @Override
     public boolean keyPressed(@NonNull KeyEvent event) {
+        boolean wasAutocompleting = textField.autocomplete.isVisible();
         if (selected != null) selected.onKey(event.key(), GLFW.GLFW_PRESS);
+
+        if (event.key() == GLFW.GLFW_KEY_TAB) {
+            if (selected == textField && wasAutocompleting) {
+                return super.keyPressed(event);
+            }
+
+            if (KeyUtil.isShiftDown()) --focusedIndex; else ++focusedIndex;
+            focusedIndex = ((focusedIndex % widgets.size()) + widgets.size()) % widgets.size();
+            select(widgets.get(focusedIndex));
+            return true;
+        } else if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+            select(null);
+        }
+
         return super.keyPressed(event);
     }
 
@@ -142,6 +156,13 @@ public class DiverScreen extends Screen {
         if (event.key() == GLFW.GLFW_KEY_ESCAPE) select(null);
         return super.keyReleased(event);
     }
+
+    @Override
+    public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
+        if (selected != null) selected.onScroll(scrollY);
+        return super.mouseScrolled(x, y, scrollX, scrollY);
+    }
+
 
     public boolean isHovered(int mx, int my) {
         return mx >= x && mx <= x + WIDTH
@@ -154,6 +175,12 @@ public class DiverScreen extends Screen {
 
     public void select(@Nullable Widget widget) {
         this.selected = widget;
+        this.focusedIndex = widget == null ? -1 : widgets.indexOf(widget);  // sync
+        if (widget != null) widget.onSelect();
+    }
+
+    public boolean isSelected(@NonNull Widget widget) {
+        return this.selected == widget;
     }
 
     public static DiverScreen getInstance() {
