@@ -4,6 +4,8 @@ import net.minecraft.client.Minecraft;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
+import java.lang.reflect.Field;
+
 public class KeyUtil {
 
     private static final Minecraft mc = Minecraft.getInstance();
@@ -48,6 +50,27 @@ public class KeyUtil {
             case GLFW.GLFW_KEY_GRAVE_ACCENT   -> shift ? '~'  : '`';
             default -> null;
         };
+    }
+
+
+    public static int getKeyCode(String keyName) {
+        try {
+            return (int) GLFW.class.getField("GLFW_KEY_" + keyName).get(null);
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    public static String getKeyName(int keyCode) {
+        for (Field f : GLFW.class.getDeclaredFields()) {
+            if (f.getName().startsWith("GLFW_KEY_")) {
+                try {
+                    if (f.getInt(null) == keyCode)
+                        return f.getName().substring("GLFW_KEY_".length());
+                } catch (IllegalAccessException _) {}
+            }
+        }
+        return "UNKNOWN";
     }
 
     public static boolean isKeyDown(int key) {

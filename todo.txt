@@ -2,5 +2,14 @@ set field values & instantiation (mc.player = new Player())
 
 fix negative indexoutofboundsE
 
+instead of capping field, expand
+
+autocomplete $macro
+
+cursor pos ((ctrl / shift +) left + right to move)
+ctrl+backspace delete word
+select
+etc.
+
 macros
 commands

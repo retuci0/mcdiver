@@ -1,8 +1,11 @@
 package me.retucio.diver;
 
+import me.retucio.diver.config.ConfigManager;
+import me.retucio.diver.config.Macro;
 import me.retucio.diver.screen.DiverScreen;
+import me.retucio.diver.util.ChatUtil;
+import me.retucio.diver.util.CommandUtil;
 import net.fabricmc.api.ModInitializer;
-
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -17,16 +20,14 @@ public class Diver implements ModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	private final static Minecraft mc = Minecraft.getInstance();
 
-	private final int SCREEN_KEY = GLFW.GLFW_KEY_RIGHT_SHIFT;
-	private final int DOUBLE_TAP_THRESHOLD = 200;
-
 	private int lastKey = -1;
 	private long lastKeyTime = -1L;
-
+	private final int DOUBLE_TAP_THRESHOLD = 200;
 
 	@Override
 	public void onInitialize() {
 		LOGGER.info("sup world");
+		ConfigManager.getInstance().load();
 	}
 
 	public void onTick() {
@@ -40,8 +41,24 @@ public class Diver implements ModInitializer {
 	public void onKey(int key, int action) {
 		if (action != GLFW.GLFW_PRESS) return;
 
-		if (key == SCREEN_KEY && lastKey == SCREEN_KEY && mc.screen == null) {
+		if (mc.screen == null
+				&& key == ConfigManager.getInstance().getConfig().keybind
+				&& lastKey == ConfigManager.getInstance().getConfig().keybind
+		) {
 			mc.setScreen(DiverScreen.getInstance());
+			lastKey = -1;
+			return;
+		}
+
+		Macro boundMacro = ConfigManager.getInstance().getMacroByKey(key);
+		if (boundMacro != null) {
+			String command = boundMacro.getCommand();
+			if (command != null) {
+				String result = CommandUtil.evaluate(command);
+				if (mc.player != null) {
+					ChatUtil.info(result);
+				}
+			}
 			lastKey = -1;
 			return;
 		}
